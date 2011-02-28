@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-VERSION='20101213'
+VERSION='20110228'
 
 from optparse import OptionParser
 from xml.sax import saxutils
@@ -113,6 +113,7 @@ class xmltv_tvnyt_fi(xmltv):
 	TOFFSET = '0200'
 	def __init__(self):
 		xmltv.__init__(self, 'http://www.tvnyt.fi/')
+		self.errors_detected = False
 
 	def channel_id(self, nr):
 		return '%s.tvnyt.fi' % nr
@@ -138,7 +139,8 @@ class xmltv_tvnyt_fi(xmltv):
 		url = "http://www.tvnyt.fi/ohjelmaopas/getChannelPrograms.aspx?channel=%d&start=%s0000&timestamp=0" % (nr, d)
 		f = urllib.urlopen(url)
 		s = f.read()
-		# fix lazy json formatting (key is not quoted properly)
+		# fix lazy json formatting
+		# - keys are not properly quoted
 		s = s.replace('{1:', '{"1":')
 		s = s.replace('{id:"', '{"id":"')
 		s = s.replace('", desc:"', '", "desc":"')
@@ -146,10 +148,23 @@ class xmltv_tvnyt_fi(xmltv):
 		s = s.replace('", category:"', '", "category":"')
 		s = s.replace('", start:"', '", "start":"')
 		s = s.replace('", stop:"', '", "stop":"')
-		# fix inproper escape codes (at least some program description contained \o)
+		# - inproper escape codes (some program descriptions contained \o)
 		s = s.replace('\\', '\\\\')
+		# - unallowed control characters
+		s = s.translate(None, ''.join([chr(x) for x in range(0x20)]))
+		
 		# decode json
-		js = json.loads(s)
+		try:
+			js = json.loads(s)
+		except ValueError as e:
+			self.errors_detected = True
+			dumpfile = 'tv_grab_fi_alt.debug'
+			sys.stderr.write('Error while parsing JSON data. Dump appended to %s.\n' % dumpfile)
+			dump = file(dumpfile, 'a')
+			dump.write("%s\n%s\n%s\n" % (url, e, s))
+			dump.close()
+			return
+
 		# "parse"
 		chid = self.channel_id(nr)
 		r = js['1']
@@ -198,4 +213,8 @@ if __name__=='__main__':
 		x.download_all_data(options.days, options.offset)
 		x.write_xml(options.output)
 
+	if x.errors_detected:
+		sys.stderr.write("One or more errors occured while parsing the data.\n")
+		sys.exit(1)
+		
 	sys.exit(0)
