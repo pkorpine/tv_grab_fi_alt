@@ -1,0 +1,13 @@
+XMLTV script tv_grab_fi uses www.telkku.com as its source for TV
+program information. I have been using that forever in my DVB
+system. Unfortunately, since the latest update of telkku.com, the data
+has become unreliable (like invalid end times etc.).
+
+I found out that another website (www.tvnyt.fi) provides the TV
+program information for Finland already in structured format (JSON). I
+decided to implement a somewhat compliant alternative of tv_grab_fi in
+Python that uses tvnyt.fi as its data source.
+
+December 11th 2010
+
+Pekka Korpinen
